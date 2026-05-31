@@ -1,0 +1,28 @@
+{
+  "name": "kutipcrew-api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "db:init": "bun run src/db/init.ts"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "baileys": "^7.0.0-rc13",
+    "groq-sdk": "^1.2.1",
+    "hono": "^4.4.0",
+    "nanoid": "^5.0.7",
+    "pg": "^8.12.0",
+    "qrcode": "^1.5.4",
+    "ws": "^8.21.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.6",
+    "@types/qrcode": "^1.5.6",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.5.0"
+  }
+}

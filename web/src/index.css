@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+@theme {
+  --color-black: #0a0a0a;
+  --color-white: #ffffff;
+  --color-red: #ff0033;
+  --color-green: #00ff66;
+  --color-yellow: #ffcc00;
+  --color-pink: #ff0066;
+  --color-cyan: #00ffff;
+  --color-orange: #ff6600;
+  --color-bg-primary: #f5f5f5;
+  --color-bg-secondary: #e0e0e0;
+  
+  --font-heading: 'Impact', 'Haettenschweiler', 'Arial Narrow Bold', sans-serif;
+  --font-body: 'Courier Prime', 'Courier New', monospace;
+  --font-accent: 'Comic Sans MS', 'Chalkboard SE', cursive;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-body);
+    background-color: var(--color-bg-primary);
+    color: var(--color-black);
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+@layer components {
+  .brutalist-card {
+    @apply border-4 border-black bg-white p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all duration-100;
+  }
+  
+  .brutalist-card:hover {
+    @apply shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-1 translate-y-1;
+  }
+  
+  .brutalist-btn {
+    @apply bg-black text-white border-4 border-black px-6 py-3 font-bold text-lg uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-100 cursor-pointer;
+  }
+  
+  .brutalist-btn:hover {
+    @apply bg-red text-black;
+  }
+  
+  .brutalist-btn:active {
+    @apply translate-y-1 shadow-none;
+  }
+  
+  .brutalist-btn-green {
+    @apply bg-green text-black border-4 border-black px-6 py-3 font-bold text-lg uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all duration-100 cursor-pointer;
+  }
+  
+  .brutalist-btn-green:hover {
+    @apply bg-black text-green;
+  }
+  
+  .brutalist-input {
+    @apply border-4 border-black bg-white px-4 py-3 font-body text-lg focus:outline-none focus:bg-yellow transition-colors duration-100;
+  }
+  
+  .brutalist-progress {
+    @apply border-4 border-black h-8 bg-gray-200 relative overflow-hidden;
+  }
+  
+  .brutalist-progress-fill {
+    @apply h-full transition-all duration-500 ease-out;
+  }
+}
+
+@keyframes pulse-brutalist {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.animate-pulse-brutalist {
+  animation: pulse-brutalist 2s infinite;
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
