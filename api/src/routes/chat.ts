@@ -18,7 +18,7 @@ chatRoutes.post('/sessions', async (c) => {
       return c.json({ error: 'Bill not found' }, 404);
     }
 
-    const session = createSession(bill_id, participant_id, participant_name);
+    const session = await createSession(bill_id, participant_id, participant_name);
 
     return c.json({
       session_id: session.id,

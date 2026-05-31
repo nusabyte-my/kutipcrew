@@ -49,8 +49,13 @@ export function ChatSession({ billId, participantId, participantName, paymentQrU
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ bill_id: billId, participant_id: participantId, participant_name: participantName }),
         });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          console.error('Chat session create failed:', errData);
+          return;
+        }
         const data = await res.json();
-        if (cancelled) return;
+        if (cancelled || !data.session_id) return;
 
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsHost = window.location.host;
