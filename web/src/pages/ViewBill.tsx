@@ -345,7 +345,7 @@ export function ViewBill() {
               {bill.participants.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => setActiveChat({ participantId: p.id, participantName: p.name })}
+                  onClick={() => { setActiveChat({ participantId: p.id, participantName: p.name }); setChatMinimized(false); }}
                   className={`border-4 border-black px-3 py-2 text-sm font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-red hover:text-white transition-colors cursor-pointer flex items-center gap-1 ${p.paid ? 'bg-green text-black' : 'bg-black text-white'}`}
                 >
                   <Icon icon="majesticons:chat" className="h-4 w-4" />
@@ -467,13 +467,22 @@ export function ViewBill() {
       )}
 
       {activeChat && chatMinimized && (
-        <button
-          onClick={() => setChatMinimized(false)}
-          className="fixed bottom-6 right-6 z-40 border-4 border-black bg-red text-white p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all animate-pulse-brutalist cursor-pointer"
-        >
-          <Icon icon="majesticons:chat" className="h-6 w-6 inline" />
-          <span className="ml-2 font-bold uppercase text-sm hidden sm:inline">Dato' Jalal — {activeChat.participantName}</span>
-        </button>
+        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2">
+          <button
+            onClick={() => { setActiveChat(null); setChatMinimized(false); }}
+            className="border-4 border-black bg-black text-white p-3 shadow-[4px_4px_0px_0px_rgba(255,0,51,1)] hover:bg-red transition-all cursor-pointer"
+            title="Close chat"
+          >
+            <Icon icon="majesticons:x" className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => setChatMinimized(false)}
+            className="border-4 border-black bg-red text-white p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 transition-all animate-pulse-brutalist cursor-pointer"
+          >
+            <Icon icon="majesticons:chat" className="h-6 w-6 inline" />
+            <span className="ml-2 font-bold uppercase text-sm hidden sm:inline">Dato' Jalal — {activeChat.participantName}</span>
+          </button>
+        </div>
       )}
     </div>
   );
