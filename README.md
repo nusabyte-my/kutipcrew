@@ -295,7 +295,9 @@ pm2 start ~/.bun/bin/bun --name "kutipcrew-api" -- run start
 
 ## 🙏 SHOUTOUTS
 
-- Built for the **Tracker Web App Challenge** (RM500 — Dato' Jalal dah tunggu!)
+- Built for the **Tracker Web App Challenge** by **krackeddev crew bounty**
+- Built by **humm1ngb1rd** from **nusabyte.my**
+  > *"I started this as a simple bill tracker. Now I have Dato' Jalal running debt collection operations from a mamak stall. This is not what I planned but I'm not complaining."*
 - Icons: [Majesticons](https://icon-sets.iconify.design/majesticons/)
 - AI: [Groq](https://groq.com/) (LLaMA 3.3 70B — paling padu!)
 - WhatsApp: [Baileys](https://github.com/WhiskeySockets/Baileys)
