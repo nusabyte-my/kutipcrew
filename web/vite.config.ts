@@ -8,8 +8,12 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_API_URL || 'http://localhost:3000',
         changeOrigin: true,
+      },
+      '/ws': {
+        target: process.env.VITE_API_URL ? process.env.VITE_API_URL.replace('http', 'ws') : 'ws://localhost:3000',
+        ws: true,
       },
     },
   },

@@ -17,6 +17,10 @@
 
 </div>
 
+[![Live](https://img.shields.io/badge/LIVE-kutipcrew.nusabyte.cloud-00ff66?style=for-the-badge)](https://kutipcrew.nusabyte.cloud)
+[![GitHub](https://img.shields.io/badge/GitHub-nusabyte--my%2Fkutipcrew-181717?style=for-the-badge&logo=github)](https://github.com/nusabyte-my/kutipcrew)
+[![Bounty](https://img.shields.io/badge/Bounty-krackeddev-ff0033?style=for-the-badge)](https://github.com/nusabyte-my/kutipcrew)
+
 ```
 ALAMAK you still owe money? Jangan risau — The Crew is here.
 Dato' Jalal will handle it. With style. Dengan maruah. 🤌
@@ -167,7 +171,7 @@ cd api && bun run dev
 cd web && bun run dev
 ```
 
-Buka **http://localhost:5173** — you're ready!
+Buka **https://kutipcrew.nusabyte.cloud** — you're ready!
 
 ---
 

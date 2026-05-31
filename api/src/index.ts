@@ -15,9 +15,10 @@ import { orchestrate } from './agents/orchestrator';
 const app = new Hono();
 
 app.use('*', cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'https://kutipcrew.nusabyte.cloud'],
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'https://kutipcrew.nusabyte.cloud', 'http://127.0.0.1:5173'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowHeaders: ['Content-Type'],
+  credentials: true,
 }));
 
 app.use('*', logger());
