@@ -1,6 +1,12 @@
 import Groq from 'groq-sdk';
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const apiKey = process.env.GROQ_API_KEY;
+let groq: Groq | null = null;
+if (apiKey) {
+  try {
+    groq = new Groq({ apiKey });
+  } catch {}
+}
 
 export interface AgentContext {
   participantName: string;
@@ -32,6 +38,10 @@ export async function callLLM(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   options?: { temperature?: number; maxTokens?: number }
 ): Promise<string> {
+  if (!groq) {
+    console.warn('GROQ_API_KEY not set — returning fallback response');
+    return '';
+  }
   try {
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
