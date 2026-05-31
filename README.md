@@ -1,6 +1,21 @@
 # 💀 KUTIPCREW
 
+<div align="center">
+
 **We collect so you don't have to chase.**
+
+![Runtime](https://img.shields.io/badge/Runtime-Bun-000000?style=for-the-badge&logo=bun&logoColor=white)
+![Backend](https://img.shields.io/badge/Backend-Hono-ffffff?style=for-the-badge&logo=hono&logoColor=black)
+![Database](https://img.shields.io/badge/Database-PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![Frontend](https://img.shields.io/badge/Frontend-React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite_8-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![AI](https://img.shields.io/badge/AI-Groq_LLaMA_3.3-orange?style=for-the-badge&logo=groq&logoColor=white)
+![WebSocket](https://img.shields.io/badge/WebSocket-Bun_Native-000000?style=for-the-badge&logo=bun&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![WhatsApp](https://img.shields.io/badge/WhatsApp-Baileys-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)
+
+</div>
 
 ```
 ALAMAK you still owe money? Jangan risau — The Crew is here.
