@@ -1,137 +1,111 @@
-# 💀 KutipCrew
+# 💀 KUTIPCREW
 
 **We collect so you don't have to chase.**
 
-A brutalist split-bill and payment tracker app with a mafia/gangster debt collection theme. Create bills, share links, send funny death threats via WhatsApp, chat with an AI-powered Mafia Boss (Don Salvatore), and play mini-games when deadlines pass — all without the awkward chasing.
-
-Built for the **Tracker Web App Challenge**.
-
-![Brutalist Design](https://img.shields.io/badge/Design-Brutalist-black?style=for-the-badge)
-![Theme](https://img.shields.io/badge/Theme-KutipCrew%20🔫-red?style=for-the-badge)
-![Stack](https://img.shields.io/badge/Stack-Hono%20+%20Bun%20+%20React-green?style=for-the-badge)
-![AI](https://img.shields.io/badge/AI-Groq%20LLaMA-orange?style=for-the-badge)
-
----
-
-## ✨ Features
-
-### Core
-- **Bill Creation** — Set up bills with title, amount, participants, due date, description, and bank details
-- **Shareable Links** — Unique link per bill (`/bill/:token`), perfect for WhatsApp sharing
-- **Payment Tracking** — Real-time dashboard showing paid/unpaid status, progress bar, collected vs remaining
-- **Member Confirmation** — Members can confirm payment via code or through Don Salvatore AI chat
-- **Organizer Dashboard** — View all bills, toggle payment status, delete bills, see aggregate stats
-- **Mobile-First** — Fully responsive, optimized for WhatsApp link opens on phones
-
-### Bonus Features
-- **🤖 Don Salvatore AI Chat** — Groq-powered (LLaMA 3.3 70B) mafia boss guides members through payment via real-time WebSocket chat. Funny, dramatic, and auto-marks as paid when confirmed
-- **📱 WhatsApp Threats** — Send personalized funny death threats to unpaid members via Baileys (WhatsApp Web API). Includes bank details in message
-- **📲 QR Code Login** — Scan QR to connect your WhatsApp directly from the app
-- **🎮 Mini-Games Arena** — When deadlines pass, unpaid members can play:
-  - 🔫 **Russian Roulette** — Spin the wheel of doom for random funny consequences
-  - ✊✋✌️ **Batu Gunting Kertas** — Beat Don Salvatore at Rock Paper Scissors for mercy
-  - 🎲 **Debt Dice** — Roll 2 dice; higher roll = more mercy from The Crew
-- **💬 Rotating Warnings** — Landing page cycles through 16 warnings in English, Bahasa Malaysia, and Manglish every 60 seconds
-- **🏦 Bank Details** — Organizer provides bank info that gets included in WhatsApp messages and displayed on bill pages
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| Runtime | **Bun** | 3x faster than Node.js, native TypeScript, single binary |
-| Backend | **Hono** | Lightweight router, minimal overhead, middleware ecosystem |
-| Database | **PostgreSQL** | Relational integrity for payment tracking, ACID-compliant |
-| Frontend | **React 19 + Vite 8** | Fast HMR, modern React features |
-| Styling | **Tailwind CSS v4** | Rapid UI iteration, custom brutalist theme |
-| Icons | **Majesticons** (Iconify) | Bold line icons matching brutalist aesthetic |
-| Server State | **TanStack Query** | Caching, background refetch, mutation management |
-| AI Chat | **Groq SDK** (LLaMA 3.3 70B) | Ultra-fast inference for real-time chat responses |
-| WhatsApp | **Baileys** | Lightweight WhatsApp Web API, no browser needed |
-| WebSocket | **Bun.serve WS** | Native WebSocket support for real-time chat |
-| Validation | **Zod** | Runtime type validation for all API inputs |
-
----
-
-## 📁 Project Structure
-
 ```
-kutipcrew/
-├── api/                          # Hono + Bun backend
-│   ├── src/
-│   │   ├── index.ts              # Entry point, HTTP + WebSocket server
-│   │   ├── routes/
-│   │   │   ├── bills.ts          # Bill CRUD endpoints
-│   │   │   ├── participants.ts   # Participant management
-│   │   │   ├── payments.ts       # Payment confirmation
-│   │   │   ├── whatsapp.ts       # WhatsApp threat sending + QR
-│   │   │   └── chat.ts           # Chat session management
-│   │   ├── services/
-│   │   │   ├── billService.ts    # Bill business logic
-│   │   │   ├── paymentService.ts # Payment + stats logic
-│   │   │   ├── groqService.ts    # Don Salvatore AI (Groq/LLaMA)
-│   │   │   ├── whatsappService.ts# Baileys WhatsApp integration
-│   │   │   ├── chatService.ts    # WebSocket chat session manager
-│   │   │   └── threatMessages.ts # Funny death threat templates
-│   │   ├── db/
-│   │   │   ├── client.ts         # PostgreSQL connection pool
-│   │   │   ├── schema.sql        # Database schema
-│   │   │   └── init.ts           # Schema initialization script
-│   │   └── types/
-│   │       ├── bill.ts           # Bill TypeScript interfaces
-│   │       └── participant.ts    # Participant interfaces
-│   ├── .env.example
-│   ├── package.json
-│   └── tsconfig.json
-│
-├── web/                          # React + Vite frontend
-│   ├── src/
-│   │   ├── App.tsx               # Root component, routing, providers
-│   │   ├── main.tsx              # Entry point
-│   │   ├── index.css             # Tailwind + brutalist custom styles
-│   │   ├── components/
-│   │   │   ├── BrutalistButton.tsx  # Styled button with icon support
-│   │   │   ├── BrutalistCard.tsx    # Card with shadow + hover effects
-│   │   │   ├── BillCard.tsx         # Bill summary card
-│   │   │   ├── ParticipantList.tsx  # Participant list with status
-│   │   │   ├── PaymentProgress.tsx  # Animated progress bar
-│   │   │   ├── CreateBillForm.tsx   # Full bill creation form
-│   │   │   ├── ChatSession.tsx      # Real-time Don Salvatore chat
-│   │   │   └── MiniGames.tsx        # Russian Roulette, RPS, Debt Dice
-│   │   ├── pages/
-│   │   │   ├── Home.tsx             # Landing page with rotating warnings
-│   │   │   ├── CreateBill.tsx       # Bill creation page
-│   │   │   ├── ViewBill.tsx         # Public bill view + actions
-│   │   │   └── Dashboard.tsx        # Organizer dashboard
-│   │   ├── lib/
-│   │   │   ├── api.ts               # API client (fetch wrapper)
-│   │   │   └── utils.ts             # Formatting, clipboard, helpers
-│   │   └── types/
-│   │       └── index.ts             # Shared TypeScript types
-│   ├── public/
-│   │   └── favicon.svg
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.ts
-│   └── tsconfig.json
-│
-├── deploy.sh                     # VPS deployment script
-├── .gitignore
-└── README.md
+ALAMAK you still owe money? Jangan risau — The Crew is here.
+Dato' Jalal will handle it. With style. Dengan maruah. 🤌
 ```
 
 ---
 
-## 🚀 Quick Start
+## 📋 APA NI?
+
+KutipCrew is a split-bill tracker with **personality**. Create bills, add your friends (with their phone numbers!), share the link, and let **Dato' Jalal** — our AI-powered Malaysian debt collector — do the chasing for you.
+
+**No more awkward "eh dah bayar ke belum?" messages.** Just send the link, and The Crew takes over.
+
+---
+
+## ✨ APA DIA BOLEH BUAT?
+
+### 🎯 Core Features
+
+| Feature | Cerita |
+|---------|--------|
+| **Create Bill** | Title, amount, participants, due date, description, bank details. All in. |
+| **Share Link** | Unique link per bill. Perfect for WhatsApp. Copied in one click. |
+| **Dashboard** | See all bills, who paid, who belum bayar, total collected vs remaining. |
+| **Payment Progress** | Green bar = good. Red bar = Dato' Jalal coming to visit. 💀 |
+| **Chat dengan Dato' Jalal** | Real-time AI chat powered by Groq LLaMA 3.3. He will chase them for you. |
+| **WhatsApp Threats** | Send personalized funny death threats with bank details included. (Jokes only lah. Or is it?) |
+| **Mini-Games** | Bill overdue? Debtors can play games to earn mercy! |
+| **Payment QR Upload** | DuitNow / TnG / bank QR — upload once, seen by all. |
+
+### 🎮 Mini-Games Arena
+
+When deadline passes, unpaid members unlock:
+
+| Game | Macam Mana | Kalau Kalah |
+|------|-----------|-------------|
+| 🔫 **Russian Roulette** | Spin the wheel. 6 chambers. 1 consequence. | Buy teh tarik for everyone |
+| ✊✋✌️ **Batu Gunting Kertas** | Play RPS against Dato' Jalal. Win = 24h mercy. | Buy Dato' roti canai |
+| 🎲 **Debt Dice** | Roll 2 dice. Higher = more mercy. | Double shame + public announcement |
+
+### 🤖 Agent System (Multi-AI Orchestrator)
+
+```
+User Message
+    │
+    ▼
+┌─────────────────────────────────────┐
+│         AGENT ORCHESTRATOR          │
+│  (routes to the right specialist)   │
+└──────┬──────────┬──────────┬────────┘
+       │          │          │
+       ▼          ▼          ▼
+┌──────────┐ ┌────────┐ ┌──────────┐
+│  Dato'   │ │Receipt │ │  Threat  │
+│  Jalal   │ │Inspector│ │ Craftsman│
+│(default) │ │(verify) │ │(WhatsApp)│
+└──────────┘ └────────┘ └──────────┘
+       │
+       ▼
+┌──────────┐
+│  Game    │
+│  Master  │
+│(mini-games)│
+└──────────┘
+```
+
+---
+
+## 🛠 STACK
+
+```
+  ╔═══════════════════════════════════════╗
+  ║            KUTIPCREW TECH             ║
+  ║     "Bangla power, result power!"     ║
+  ╚═══════════════════════════════════════╝
+
+  Runtime:      Bun (cepat macam lightning ⚡)
+  Backend:      Hono (kecik molek, minimal)
+  Database:     PostgreSQL (besar, lawan habis)
+  Frontend:     React 19 + Vite 8 (laju gila babi)
+  CSS:          Tailwind v4 (mudah, padu)
+  Icons:        Majesticons (Iconify)
+  State:        TanStack Query (mantap)
+  AI Chat:      Groq — LLaMA 3.3 70B (power!)
+  WhatsApp:     Baileys (no browser needed)
+  Realtime:     Bun WebSocket (native, zero config)
+  Validation:   Zod (ketat, confirm)
+  
+  ─── PERSISTENCE ───
+  
+  Semua chat history disimpan dalam PostgreSQL.
+  Tak hilang. Tak lari. Dato' Jalal ingat semua.
+  "Dato' punya ingatan lagi kuat dari WiFi Unifi!"
+```
+
+---
+
+## 🚀 QUICK START (Locally)
 
 ### Prerequisites
-
 - [Bun](https://bun.sh/) v1.0+
-- PostgreSQL 14+ (native install)
-- [Groq API Key](https://console.groq.com/) (free tier available)
+- PostgreSQL 14+ (must be running)
 
-### 1. Clone & Install
+### 1. Clone & Install Dependencies
 
 ```bash
 git clone https://github.com/nusabyte-my/kutipcrew.git
@@ -144,167 +118,158 @@ cd api && bun install && cd ..
 cd web && bun install && cd ..
 ```
 
-### 2. Set Up Database
+### 2. Create Database
 
 ```bash
-# Create database
-psql -U postgres -c "CREATE DATABASE kutipcrew;"
+psql -U postgres -c "CREATE DATABASE splitbill;"
+```
 
-# Configure backend
+### 3. Configure
+
+```bash
 cd api
 cp .env.example .env
-# Edit .env with your PostgreSQL credentials and Groq API key
-
-# Initialize schema
+# Edit .env with your credentials and GROQ_API_KEY
 bun run db:init
 cd ..
 ```
 
-### 3. Configure Environment
+### 4. Seed Demo Data (optional but recommended)
 
-**Backend (`api/.env`):**
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=kutipcrew
-DB_USER=postgres
-DB_PASSWORD=your_password
-PORT=3000
-GROQ_API_KEY=gsk_your_groq_api_key_here
+```bash
+cd api && bun run src/db/seed.ts && cd ..
 ```
 
-**Frontend (`web/.env`):**
-```env
-VITE_API_URL=http://localhost:3000
-```
-
-### 4. Run Development Servers
+### 5. Run
 
 **Terminal 1 — Backend:**
 ```bash
-cd api
-bun run dev
+cd api && bun run dev
 ```
 
 **Terminal 2 — Frontend:**
 ```bash
-cd web
-bun run dev
+cd web && bun run dev
 ```
 
-Visit **http://localhost:5173** to use the app!
+Buka **http://localhost:5173** — you're ready!
 
 ---
 
-## 🔌 API Reference
+## 🎭 DEMO DATA
+
+After seeding, you get **3 bills** with **12 participants** and **full chat histories**:
+
+| Bill | Link | Scenario |
+|------|------|----------|
+| 🍛 Friday Malam Makan Session | `/bill/demo-makan-01` | Budi ✅ Farid ✅, 3 orang belum bayar |
+| 🏸 Badminton Court Booking | `/bill/demo-badminton-02` | OVERDUE — games unlocked, 2 unpaid |
+| 🌐 House WiFi Bill - June | `/bill/demo-wifi-03` | All fresh — nobody paid yet |
+
+**To see chats in action:**
+1. Open a bill, scroll to "View Chat" for any participant
+2. Click "Chat dengan Dato' Jalal" to start a new conversation
+3. Say "dah bayar" → Dato' asks for receipt → upload any image → auto-marked PAID
+
+---
+
+## 📁 PROJECT STRUCTURE
+
+```
+kutipcrew/
+├── api/                          # Hono + Bun backend
+│   ├── src/
+│   │   ├── index.ts              # HTTP + WebSocket server
+│   │   ├── agents/               # Multi-agent AI system
+│   │   │   ├── orchestrator.ts   # Central router
+│   │   │   ├── datoJalalAgent.ts # Main debt collector
+│   │   │   ├── receiptAgent.ts   # Payment verifier
+│   │   │   ├── threatAgent.ts    # WhatsApp message crafter
+│   │   │   ├── gameMasterAgent.ts# Mini-game referee
+│   │   │   └── types.ts          # Agent interfaces + Groq client
+│   │   ├── routes/               # API endpoints
+│   │   ├── services/             # Business logic
+│   │   ├── db/                   # Schema + migrations + seed
+│   │   └── types/                # TypeScript types
+│   └── package.json
+│
+├── web/                          # React + Vite frontend
+│   ├── src/
+│   │   ├── components/           # UI components
+│   │   ├── pages/                # Page components
+│   │   ├── lib/                  # API client + utils
+│   │   └── types/                # TypeScript types
+│   ├── index.html
+│   └── vite.config.ts
+│
+└── README.md
+```
+
+---
+
+## 🔌 API REFERENCE (Untuk Developer)
 
 ### Bills
-| Method | Endpoint | Description |
+| Method | Endpoint | Apa Dia Buat |
 |--------|----------|-------------|
-| POST | `/api/bills` | Create a new bill with participants |
-| GET | `/api/bills` | List all bills |
-| GET | `/api/bills/:id` | Get bill by ID |
-| GET | `/api/bills/share/:token` | Get bill by share token |
-| PUT | `/api/bills/:id` | Update bill |
-| DELETE | `/api/bills/:id` | Delete bill |
+| `POST` | `/api/bills` | Create bill with participants |
+| `GET` | `/api/bills` | List semua bills |
+| `GET` | `/api/bills/share/:token` | Get bill by share link |
+| `PUT` | `/api/bills/:id` | Update bill details |
+| `DELETE` | `/api/bills/:id` | Delete bill (gone forever RIP) |
 
 ### Participants
-| Method | Endpoint | Description |
+| Method | Endpoint | Apa Dia Buat |
 |--------|----------|-------------|
-| POST | `/api/bills/:billId/participants` | Add participants to bill |
-| GET | `/api/bills/:billId/participants` | List participants |
-| PUT | `/api/participants/:id/pay` | Mark participant as paid |
-| PUT | `/api/participants/:id/unpay` | Mark participant as unpaid |
-
-### Payments
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/payments/confirm` | Confirm payment with code |
-| GET | `/api/payments/stats/:billId` | Get payment statistics |
+| `POST` | `/api/bills/:id/participants` | Add more people to chase |
+| `PUT` | `/api/participants/:id/pay` | Mark as PAID (selamat!) |
+| `PUT` | `/api/participants/:id/unpay` | Unmark (kenapa ni?) |
 
 ### WhatsApp
-| Method | Endpoint | Description |
+| Method | Endpoint | Apa Dia Buat |
 |--------|----------|-------------|
-| POST | `/api/whatsapp/start` | Initialize WhatsApp (Baileys) |
-| GET | `/api/whatsapp/status` | Check connection status |
-| GET | `/api/whatsapp/qr` | Get QR code for linking |
-| POST | `/api/whatsapp/send/:billId` | Send threats to unpaid members |
-| POST | `/api/whatsapp/send-preview` | Preview threat message |
+| `GET` | `/api/whatsapp/qr` | Get QR code for linking |
+| `GET` | `/api/whatsapp/status` | Check if WhatsApp is connected |
+| `POST` | `/api/whatsapp/send/:billId` | Send threats to unpaid members |
+| `POST` | `/api/whatsapp/send-preview` | Preview the threat message |
 
-### Chat (Don Salvatore AI)
-| Method | Endpoint | Description |
+### Chat (Dato' Jalal AI)
+| Method | Endpoint | Apa Dia Buat |
 |--------|----------|-------------|
-| POST | `/api/chat/sessions` | Create chat session for participant |
-| GET | `/api/chat/sessions/:id` | Get session info |
-| WS | `/ws/chat?session=:id&name=:name` | WebSocket for real-time chat |
+| `POST` | `/api/chat/sessions` | Create chat session |
+| `GET` | `/api/chat/bill/:id/participant/:pid` | Get chat history |
+| `WS` | `/ws/chat?session=:id` | Real-time chat WebSocket |
 
 ---
 
-## 🎮 Mini-Games
+## 🎨 DESIGN SYSTEM
 
-When a bill's deadline passes, unpaid members unlock the **Mini-Games Arena**:
-
-### 🔫 Russian Roulette
-- 6 chambers, spin the wheel
-- Random funny consequence assigned (buy teh tarik, sing in group call, change WhatsApp status, etc.)
-
-### ✊✋✌️ Batu Gunting Kertas
-- Play Rock Paper Scissors against Don Salvatore
-- Win = 24 extra hours to pay
-- Lose = Buy Don Salvatore roti canai as tribute
-
-### 🎲 Debt Dice
-- Roll 2 dice (2-12)
-- Low roll = double shame
-- High roll = Don Salvatore grants mercy
-
----
-
-## 🤖 Don Salvatore AI Chat
-
-Powered by **Groq** running **LLaMA 3.3 70B Versatile**:
-
-- Stays in character as a funny mafia/gangster boss
-- Mixes Italian-American mobster slang with Malaysian/Mamak humor
-- Guides participants through payment confirmation
-- Auto-detects when user confirms payment → marks as paid automatically
-- References bank details provided by organizer
-- Celebrates dramatically when someone pays
-
----
-
-## 🎨 Design System
-
-### Color Palette
 ```
-Black:    #0a0a0a    Primary borders, buttons
-White:    #ffffff    Card backgrounds
-Red:      #ff0033    Danger, unpaid, threats
-Green:    #00ff66    Success, paid
-Yellow:   #ffcc00    Warning, highlights
-Pink:     #ff0066    Accents
-Cyan:     #00ffff    Accents
-Orange:   #ff6600    Urgency
+COLORS:
+  Black:  #0a0a0a   Everything. Borders. Buttons.
+  Red:    #ff0033   Danger. Unpaid. Dato' marah.
+  Green:  #00ff66   Paid. Success. Selamat!
+  Yellow: #ffcc00   Warning. Almost overdue.
+  White:  #ffffff   Cards. Backgrounds.
+
+FONTS:
+  Headings:  Impact (bold. dramatic. uppercase.)
+  Body:      Courier Prime (macam typewriter gangster)
+  Accent:    Comic Sans MS (for comedy value)
+  
+STYLE RULES:
+  ┌───────────────────────────────────────┐
+  │ Every border MUST be 4px thick.     │
+  │ Every shadow MUST be 8px offset.    │
+  │ No rounded corners. EVER.            │
+  │ If it doesn't look aggressive,      │
+  │ it's not brutalist enough.           │
+  └───────────────────────────────────────┘
 ```
 
-### Typography
-- **Headings:** Impact, Haettenschweiler (bold, dramatic, uppercase)
-- **Body:** Courier Prime (monospace, brutalist)
-- **Accent:** Comic Sans MS (ironic, comedic)
-
-### UI Patterns
-- Thick 4px black borders on everything
-- Hard box shadows (`8px 8px 0px`)
-- Hover: shadow reduces + element translates
-- Active: shadow disappears + translate down
-- Pulsing animation on CTAs
-- Shake animation on overdue items
-
 ---
 
-## 🚢 Deployment
-
-### VPS Setup (PM2 + Nginx)
+## 🚢 DEPLOYMENT (VPS)
 
 ```bash
 # 1. Build frontend
@@ -312,80 +277,39 @@ cd web && bun run build
 
 # 2. Start backend with PM2
 cd ../api
-pm2 start bun --name "kutipcrew-api" -- run start
+pm2 start ~/.bun/bin/bun --name "kutipcrew-api" -- run start
 
-# 3. Configure Nginx
+# 3. Configure Nginx for kutipcrew.nusabyte.cloud
+#    Serve web/dist as static files
+#    Proxy /api/* to localhost:3000
+#    Proxy /ws/* to localhost:3000 (WebSocket)
 ```
 
-**Nginx config example:**
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    root /path/to/kutipcrew/web/dist;
-    index index.html;
-
-    # Frontend SPA routing
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # API proxy
-    location /api/ {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-    }
-
-    # WebSocket proxy
-    location /ws/ {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-    }
-}
-```
-
-### SSL (Let's Encrypt)
-```bash
-sudo certbot --nginx -d your-domain.com
-```
+**Production requirements:**
+- PostgreSQL running on the VPS (or remote)
+- `GROQ_API_KEY` in environment
+- Nginx with SSL (Let's Encrypt)
+- PM2 for process management
 
 ---
 
-## 📋 Requirements Checklist
+## 🙏 SHOUTOUTS
 
-| # | Requirement | Status |
-|---|-------------|--------|
-| 1 | Bill Creation | ✅ |
-| 2 | Shareable Bill Page | ✅ |
-| 3 | Member Payment Confirmation | ✅ |
-| 4 | Organizer Dashboard | ✅ |
-| 5 | Payment Progress Display | ✅ |
-| 6 | Mobile-Friendly Design | ✅ |
-| 7 | Creative Theme / Branding | ✅ |
-| 8 | GitHub Repository | ✅ |
-| 9 | Short Project Description | ✅ |
-| 10 | Optional Bonus Features | ✅ |
-| 11 | Minimum Acceptance Criteria | ✅ |
+- Built for the **Tracker Web App Challenge** (RM500 — Dato' Jalal dah tunggu!)
+- Icons: [Majesticons](https://icon-sets.iconify.design/majesticons/)
+- AI: [Groq](https://groq.com/) (LLaMA 3.3 70B — paling padu!)
+- WhatsApp: [Baileys](https://github.com/WhiskeySockets/Baileys)
+- Inspired by every mamak session where someone "lupa bawa duit"
 
 ---
 
-## 🙏 Acknowledgments
+```
+Dato' Jalal's Final Words:
+─────────────────────────
+"Kau dah baca README ni habis-habis.
+Sekarang gi bayar hutang.
+Atau Dato' datang rumah."
+                                                🤌💀
 
-- Built for the **Tracker Web App Challenge**
-- Icons by [Majesticons](https://icon-sets.iconify.design/majesticons/)
-- AI powered by [Groq](https://groq.com/) (LLaMA 3.3 70B)
-- WhatsApp integration via [Baileys](https://github.com/WhiskeySockets/Baileys)
-- Inspired by every group meal where someone "forgot their wallet"
-
----
-
-**KutipCrew — We collect so you don't have to chase 💀🔫**
-
-*The Crew never forgets...*
+KutipCrew — We collect so you don't have to chase.
+```

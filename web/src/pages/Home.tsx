@@ -19,7 +19,7 @@ const WARNINGS = [
   "KutipCrew tidak pernah lupa. Kami ada senarai nama, nombor telefon, dan menu kegemaran anda. Bayar hutang atau kami order makanan paling mahal atas nama anda! 🍛💀",
   "Eh, you know what happens when the deadline pass? Nothing... at first. Then suddenly your friends start 'forgetting' to invite you to makan. Coincidence? I THINK NOT! 😈",
   "LEGAL DISCLAIMER (not really): KutipCrew reserves the right to send increasingly dramatic messages, deploy emoji warfare, and compose diss tracks about chronic non-payers.",
-  "Bro, serious talk — if you don't pay, Don Salvatore will make you watch his 3-hour monologue about 'respect' and 'family values' while eating YOUR roti canai! 🤌🫓",
+  "Bro, serious talk — if you don't pay, Dato' Jalal will make you watch his 3-hour presentation about 'maruah' and 'hutang' while eating YOUR roti canai! 🤌🫓",
   "Dengar sini baik-baik! Kalau lambat bayar, nama anda akan diumumkan di speaker masjid... eh silap, di WhatsApp group! Malu wei! 🕌📢",
 ];
 
