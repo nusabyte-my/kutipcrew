@@ -53,8 +53,8 @@ export function ChatSession({ billId, participantId, participantName, paymentQrU
         if (cancelled) return;
 
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsHost = window.location.hostname;
-        const wsUrl = `${wsProtocol}//${wsHost}:3000/ws/chat?session=${data.session_id}&name=${encodeURIComponent(participantName)}`;
+        const wsHost = window.location.host;
+        const wsUrl = `${wsProtocol}//${wsHost}/ws/chat?session=${data.session_id}&name=${encodeURIComponent(participantName)}`;
 
         ws = new WebSocket(wsUrl);
         wsRef.current = ws;
