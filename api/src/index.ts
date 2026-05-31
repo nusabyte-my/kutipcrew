@@ -32,7 +32,7 @@ app.route('/api/uploads', uploadRoutes);
 app.get('/', (c) => c.json({ message: 'KutipCrew API — We collect so you don\'t have to chase 💀' }));
 app.get('/health', (c) => c.json({ status: 'ok' }));
 
-const port = parseInt(process.env.PORT || '3002');
+const port = parseInt(process.env.PORT || '3303');
 
 function broadcastToSession(session: any, data: any) {
   const payload = JSON.stringify(data);
