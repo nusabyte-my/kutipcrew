@@ -1,7 +1,8 @@
-import makeWASocket, { 
-  DisconnectReason, 
+import makeWASocket, {
+  DisconnectReason,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
+  Browsers,
   type WASocket,
   type ConnectionState,
 } from 'baileys';
@@ -9,10 +10,13 @@ import QRCode from 'qrcode';
 import { Boom } from '@hapi/boom';
 import path from 'path';
 import fs from 'fs';
+import pino from 'pino';
 
 let sock: WASocket | null = null;
 let qrDataUrl: string | null = null;
 let isConnected = false;
+let reconnectAttempt = 0;
+const MAX_RECONNECT_DELAY = 60_000;
 const authDir = path.join(process.cwd(), '.wa-auth');
 
 if (!fs.existsSync(authDir)) {
@@ -25,11 +29,15 @@ export async function startWhatsApp(): Promise<void> {
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
   const { version } = await fetchLatestBaileysVersion();
 
+  const logger = pino({ level: 'silent' });
+
   sock = makeWADefault({
     version,
     auth: state,
     printQRInTerminal: false,
     generateHighQualityLinkPreview: false,
+    logger,
+    browser: Browsers.ubuntu('Chrome'),
   });
 
   sock.ev.on('creds.update', saveCreds);
