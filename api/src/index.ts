@@ -7,16 +7,26 @@ import { paymentRoutes } from './routes/payments';
 import { whatsappRoutes } from './routes/whatsapp';
 import { chatRoutes } from './routes/chat';
 import { uploadRoutes } from './routes/upload';
-import { getSession, persistMessage } from './services/chatService';
+import { getSession, persistMessage, getSessionCache } from './services/chatService';
 import { getBillById } from './services/billService';
 import { markAsPaid } from './services/paymentService';
 import { orchestrate } from './agents/orchestrator';
+import { startWhatsApp, stopWhatsApp } from './services/whatsappService';
 
 const app = new Hono();
 
 app.use('*', cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'https://kutipcrew.nusabyte.cloud', 'http://127.0.0.1:5173'],
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:4088',
+    'http://localhost:3303',
+    'http://localhost:3000',
+    'https://kutipcrew.nusabyte.cloud',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:4088',
+  ],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowHeaders: ['Content-Type'],
   credentials: true,
 }));
@@ -66,7 +76,7 @@ async function processAgentResponse(session: any, reply: string, action: string 
   await persistMessage(session.billId, session.participantId, 'assistant', reply).catch(() => {});
 
   if (action === 'share_qr') {
-    const bill = await getBillById(session.billId);
+    const bill = getSessionCache(session.billId);
     if (bill?.payment_qr_url) {
       const qrMsg = `Ni QR code untuk bayar! Scan dan transfer RM${(bill.total_amount / Math.max(bill.participants.length, 1)).toFixed(2)} 👇`;
       session.history.push({ role: 'assistant', content: qrMsg });
@@ -85,11 +95,15 @@ async function processAgentResponse(session: any, reply: string, action: string 
   }
 
   if (action === 'mark_paid') {
-    const bill = await getBillById(session.billId);
+    const bill = getSessionCache(session.billId);
     const participant = bill?.participants.find((p: any) => p.id === session.participantId);
     if (participant && !participant.paid) {
       try {
-        await markAsPaid(session.participantId, `Agent:${agentName}`);
+        await markAsPaid(session.participantId, `Agent:${agentName}`, {
+          notes: `Auto-marked by ${agentName}`,
+        });
+        participant.paid = true;
+        participant.paid_at = new Date().toISOString();
         broadcastToSession(session, {
           type: 'payment_confirmed',
           participantName: session.participantName,
@@ -116,7 +130,7 @@ async function handleChatMessage(session: any, userMessage: string, messageId?: 
   broadcastToSession(session, { type: 'message', role: 'user', content: userMessage, id: messageId });
   await persistMessage(session.billId, session.participantId, 'user', userMessage).catch(() => {});
 
-  const bill = await getBillById(session.billId);
+  const bill = getSessionCache(session.billId);
   if (!bill) {
     broadcastToSession(session, { type: 'message', role: 'assistant', content: "Bill sudah hilang dalam void... 💀" });
     return;
@@ -149,7 +163,8 @@ const server = Bun.serve({
         return new Response('Session not found', { status: 404 });
       }
 
-      const upgraded = server.upgrade(req, { data: { sessionId, name } });
+      const data = { sessionId, name } as any;
+      const upgraded = server.upgrade(req, { data });
       if (upgraded) return undefined;
       return new Response('Upgrade failed', { status: 500 });
     }
@@ -158,7 +173,7 @@ const server = Bun.serve({
   },
   websocket: {
     open(ws) {
-      const { sessionId, name } = ws.data as { sessionId: string; name: string };
+      const { sessionId, name } = ws.data as unknown as { sessionId: string; name: string };
       const session = getSession(sessionId);
       if (!session) {
         ws.close(4001, 'Session not found');
@@ -182,7 +197,7 @@ const server = Bun.serve({
       try {
         const parsed = JSON.parse(typeof data === 'string' ? data : data.toString());
         if (parsed.type === 'chat' && parsed.message) {
-          const { sessionId } = ws.data as { sessionId: string };
+          const { sessionId } = ws.data as unknown as { sessionId: string };
           const session = getSession(sessionId);
           if (session) {
             await handleChatMessage(session, parsed.message, parsed.id);
@@ -193,13 +208,30 @@ const server = Bun.serve({
       }
     },
     close(ws) {
-      const { sessionId } = ws.data as { sessionId: string };
+      const { sessionId } = ws.data as unknown as { sessionId: string };
       const session = getSession(sessionId);
       if (session) {
         session.clients.delete(ws);
       }
     },
   },
+});
+
+startWhatsApp().catch((err) => {
+  console.warn('⚠️  WhatsApp auto-start failed (non-fatal):', err);
+});
+
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Shutting down KutipCrew API...');
+  await stopWhatsApp();
+  server.stop();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await stopWhatsApp();
+  server.stop();
+  process.exit(0);
 });
 
 console.log(`💀 KutipCrew API running on port ${port}`);

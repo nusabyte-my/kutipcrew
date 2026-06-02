@@ -1,4 +1,5 @@
-import type { BillWithStats, CreateBillInput, Participant, BillStats } from '../types';
+import type { BillWithStats, CreateBillInput, Participant, BillStats, BillSummary } from '../types';
+export type { BillSummary };
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -29,8 +30,13 @@ export const api = {
   getBillByToken: (token: string) =>
     fetchAPI<BillWithStats>(`/api/bills/share/${token}`),
 
-  getAllBills: () =>
-    fetchAPI<BillWithStats[]>('/api/bills'),
+  getBillSummary: (id: string) =>
+    fetchAPI<BillSummary>(`/api/bills/${id}/summary`),
+
+  getAllBills: (dueWithinDays?: number) => {
+    const q = dueWithinDays ? `?due_within=${dueWithinDays}` : '';
+    return fetchAPI<BillWithStats[]>(`/api/bills${q}`);
+  },
 
   updateBill: (id: string, data: Partial<CreateBillInput>) =>
     fetchAPI<BillWithStats>(`/api/bills/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -38,19 +44,33 @@ export const api = {
   deleteBill: (id: string) =>
     fetchAPI<{ message: string }>(`/api/bills/${id}`, { method: 'DELETE' }),
 
-  addParticipants: (billId: string, participants: Array<{ name: string; email?: string; phone?: string }>) =>
-    fetchAPI<Participant[]>(`/api/bills/${billId}/participants`, { 
-      method: 'POST', 
-      body: JSON.stringify({ participants }) 
+  addParticipants: (billId: string, participants: Array<{ name: string; email?: string; phone?: string; share_amount?: number; share_weight?: number }>) =>
+    fetchAPI<Participant[]>(`/api/bills/${billId}/participants`, {
+      method: 'POST',
+      body: JSON.stringify({ participants }),
     }),
 
   getParticipants: (billId: string) =>
     fetchAPI<Participant[]>(`/api/bills/${billId}/participants`),
 
-  markAsPaid: (participantId: string, confirmedBy?: string) =>
+  updateParticipant: (id: string, data: Partial<{ name: string; email: string | null; phone: string | null; share_amount: number; share_weight: number }>) =>
+    fetchAPI<Participant>(`/api/participants/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  removeParticipant: (id: string) =>
+    fetchAPI<{ success: boolean }>(`/api/participants/${id}`, { method: 'DELETE' }),
+
+  markAsPaid: (participantId: string, opts?: { confirmedBy?: string; paymentMethod?: string; paymentReference?: string; notes?: string }) =>
     fetchAPI<Participant>(`/api/participants/${participantId}/pay`, {
       method: 'PUT',
-      body: JSON.stringify({ confirmed_by: confirmedBy }),
+      body: JSON.stringify({
+        confirmed_by: opts?.confirmedBy,
+        payment_method: opts?.paymentMethod,
+        payment_reference: opts?.paymentReference,
+        notes: opts?.notes,
+      }),
     }),
 
   markAsUnpaid: (participantId: string) =>
@@ -73,16 +93,29 @@ export const api = {
   startWhatsApp: () =>
     fetchAPI<{ message: string }>('/api/whatsapp/start', { method: 'POST' }),
 
+  stopWhatsApp: () =>
+    fetchAPI<{ message: string }>('/api/whatsapp/stop', { method: 'POST' }),
+
+  logoutWhatsApp: () =>
+    fetchAPI<{ message: string }>('/api/whatsapp/logout', { method: 'POST' }),
+
   getWhatsAppStatus: () =>
     fetchAPI<{ connected: boolean }>('/api/whatsapp/status'),
 
   getWhatsAppQR: () =>
-    fetchAPI<{ qr: string; connected: boolean }>('/api/whatsapp/qr'),
+    fetchAPI<{ qr: string; connected: boolean } | { error: string; connected: boolean }>('/api/whatsapp/qr'),
 
-  sendWhatsAppThreats: (billId: string, participantIds?: string[]) =>
+  sendWhatsAppThreats: (billId: string, opts?: { participantIds?: string[]; delayMs?: number }) =>
     fetchAPI<{ sent: number; failed: number; details: Array<{ phone: string; success: boolean; error?: string }> }>(
       `/api/whatsapp/send/${billId}`,
-      { method: 'POST', body: JSON.stringify({ participant_ids: participantIds, base_url: window.location.origin }) }
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          participant_ids: opts?.participantIds,
+          delay_ms: opts?.delayMs,
+          base_url: window.location.origin,
+        }),
+      }
     ),
 
   uploadQR: async (file: File): Promise<{ url: string; filename: string }> => {

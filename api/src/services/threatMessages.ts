@@ -19,16 +19,33 @@ const PAID_COMPLIMENTS = [
   "🏆 GOLD MEDAL goes to {name} for actually paying RM{amount}! Meanwhile {unpaid_count} others are still living in DENIAL.",
 ];
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  MYR: 'RM',
+  SGD: 'S$',
+  IDR: 'Rp',
+  THB: '฿',
+  PHP: '₱',
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+};
+
+function symbolFor(currency: string | undefined): string {
+  if (!currency) return 'RM';
+  return CURRENCY_SYMBOLS[currency.toUpperCase()] || currency;
+}
+
 export function getThreatMessage(params: {
   name: string;
   amount: number;
   bill: string;
   currency?: string;
 }): string {
+  const sym = symbolFor(params.currency);
   const index = Math.floor(Math.random() * THREATS.length);
   return THREATS[index]
     .replace(/{name}/g, params.name)
-    .replace(/{amount}/g, params.amount.toFixed(2))
+    .replace(/{amount}/g, `${sym}${params.amount.toFixed(2)}`)
     .replace(/{bill}/g, params.bill);
 }
 
@@ -37,11 +54,13 @@ export function getPaidCompliment(params: {
   amount: number;
   unpaidNames: string[];
   unpaidCount: number;
+  currency?: string;
 }): string {
+  const sym = symbolFor(params.currency);
   const index = Math.floor(Math.random() * PAID_COMPLIMENTS.length);
   return PAID_COMPLIMENTS[index]
     .replace(/{name}/g, params.name)
-    .replace(/{amount}/g, params.amount.toFixed(2))
+    .replace(/{amount}/g, `${sym}${params.amount.toFixed(2)}`)
     .replace(/{unpaid_names}/g, params.unpaidNames.join(', ') || 'nobody')
     .replace(/{unpaid_count}/g, String(params.unpaidCount));
 }
@@ -57,7 +76,9 @@ export function buildPaymentMessage(params: {
   bankHolder?: string;
   shareUrl: string;
   dueDate?: string;
+  description?: string;
 }): string {
+  const sym = symbolFor(params.currency);
   const threat = getThreatMessage({
     name: params.participantName,
     amount: params.amount,
@@ -68,12 +89,16 @@ export function buildPaymentMessage(params: {
   let msg = `${threat}\n\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━\n`;
   msg += `📋 *${params.billTitle}*\n`;
-  msg += `💰 You owe: *RM${params.amount.toFixed(2)}*\n`;
+  if (params.description) {
+    const short = params.description.length > 100 ? params.description.slice(0, 97) + '...' : params.description;
+    msg += `ℹ️ ${short}\n`;
+  }
+  msg += `💰 You owe: *${sym}${params.amount.toFixed(2)}*\n`;
   msg += `👤 Organizer: ${params.organizerName}\n`;
 
   if (params.dueDate) {
     const daysLeft = Math.ceil((new Date(params.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    msg += `⏰ Due: ${daysLeft > 0 ? `${daysLeft} days left` : `${Math.abs(daysLeft)} days OVERDUE 💀`}\n`;
+    msg += `⏰ Due: ${daysLeft > 0 ? `${daysLeft} days left` : daysLeft === 0 ? 'DUE TODAY!' : `${Math.abs(daysLeft)} days OVERDUE 💀`}\n`;
   }
 
   if (params.bankName && params.bankAccount) {

@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid';
 import { db } from '../db/client';
+import type { BillWithStats } from '../types/bill';
 
 interface ChatSession {
   id: string;
@@ -13,25 +14,70 @@ interface ChatSession {
 }
 
 const sessions = new Map<string, ChatSession>();
+const billCache = new Map<string, { data: BillWithStats; expiresAt: number }>();
+const BILL_CACHE_TTL_MS = 30_000;
 
 export function getSession(sessionId: string): ChatSession | undefined {
   return sessions.get(sessionId);
 }
 
+export function getSessionCache(billId: string): BillWithStats | undefined {
+  const entry = billCache.get(billId);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiresAt) {
+    billCache.delete(billId);
+    return undefined;
+  }
+  return entry.data;
+}
+
+export function setSessionCache(billId: string, bill: BillWithStats) {
+  billCache.set(billId, { data: bill, expiresAt: Date.now() + BILL_CACHE_TTL_MS });
+}
+
+export function invalidateBillCache(billId: string) {
+  billCache.delete(billId);
+}
+
 export async function createSession(billId: string, participantId: string, participantName: string): Promise<ChatSession> {
-  let existing: ChatSession | undefined;
   for (const s of sessions.values()) {
     if (s.billId === billId && s.participantId === participantId) {
-      existing = s;
-      break;
+      return s;
     }
   }
-  if (existing) return existing;
 
-  const historyRows = await db.query(
-    'SELECT role, content FROM chat_history WHERE bill_id = $1 AND participant_id = $2 ORDER BY created_at',
-    [billId, participantId]
-  );
+  const [historyRows, billResult] = await Promise.all([
+    db.query(
+      'SELECT role, content FROM chat_history WHERE bill_id = $1 AND participant_id = $2 ORDER BY created_at',
+      [billId, participantId]
+    ),
+    db.query('SELECT * FROM bills WHERE id = $1', [billId]),
+  ]);
+
+  if (billResult.rows.length > 0) {
+    const participantsResult = await db.query(
+      'SELECT * FROM participants WHERE bill_id = $1 ORDER BY created_at',
+      [billId]
+    );
+    const totalAmount = parseFloat(billResult.rows[0].total_amount);
+    const participants = participantsResult.rows;
+    const paid = participants.filter((p: any) => p.paid);
+    const collected = paid.reduce((s: number, p: any) => s + parseFloat(p.share_amount.toString()), 0);
+    setSessionCache(billId, {
+      ...billResult.rows[0],
+      participants,
+      stats: {
+        total_participants: participants.length,
+        paid_count: paid.length,
+        unpaid_count: participants.length - paid.length,
+        collected_amount: parseFloat(collected.toFixed(2)),
+        remaining_amount: parseFloat((totalAmount - collected).toFixed(2)),
+        progress_percentage: participants.length > 0 ? Math.round((paid.length / participants.length) * 100) : 0,
+        days_until_due: null,
+        is_overdue: false,
+      },
+    });
+  }
 
   const session: ChatSession = {
     id: nanoid(10),

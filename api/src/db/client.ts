@@ -10,19 +10,18 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || 'postgres',
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000,
 });
 
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+  console.error('Unexpected error on idle Postgres client (not fatal):', err);
 });
 
 export const db = {
   query: (text: string, params?: any[]) => pool.query(text, params),
-  
+
   getClient: () => pool.connect(),
-  
+
   async transaction<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
     const client = await pool.connect();
     try {
@@ -31,11 +30,15 @@ export const db = {
       await client.query('COMMIT');
       return result;
     } catch (e) {
-      await client.query('ROLLBACK');
+      await client.query('ROLLBACK').catch(() => {});
       throw e;
     } finally {
       client.release();
     }
+  },
+
+  async close() {
+    await pool.end();
   },
 };
 

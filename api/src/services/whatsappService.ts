@@ -1,86 +1,128 @@
-import makeWASocket, {
-  DisconnectReason,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  Browsers,
-  type WASocket,
-  type ConnectionState,
-} from 'baileys';
-import QRCode from 'qrcode';
-import { Boom } from '@hapi/boom';
-import path from 'path';
+import wppconnect from '@wppconnect-team/wppconnect';
+import type { Whatsapp } from '@wppconnect-team/wppconnect';
 import fs from 'fs';
-import pino from 'pino';
+import path from 'path';
 
-let sock: WASocket | null = null;
+let client: Whatsapp | null = null;
 let qrDataUrl: string | null = null;
 let isConnected = false;
-let reconnectAttempt = 0;
+let isStarting = false;
+let hasEverConnected = false;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let startPromise: Promise<void> | null = null;
+let lastDisconnectAt = 0;
+let reconnectAttempts = 0;
 const MAX_RECONNECT_DELAY = 60_000;
-const authDir = path.join(process.cwd(), '.wa-auth');
+const TOKEN_DIR = path.join(process.cwd(), '.wa-tokens');
 
-if (!fs.existsSync(authDir)) {
-  fs.mkdirSync(authDir, { recursive: true });
+if (!fs.existsSync(TOKEN_DIR)) {
+  fs.mkdirSync(TOKEN_DIR, { recursive: true });
+}
+
+function clearReconnect() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+}
+
+function scheduleReconnect(reason: string) {
+  clearReconnect();
+  const delay = Math.min(2000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
+  reconnectAttempts++;
+  console.log(`🔄 Reconnecting WhatsApp in ${(delay / 1000).toFixed(1)}s (${reason})...`);
+  reconnectTimer = setTimeout(() => {
+    startWhatsApp().catch((err) => {
+      console.error('Reconnect failed:', err);
+    });
+  }, delay);
 }
 
 export async function startWhatsApp(): Promise<void> {
-  if (sock) return;
+  if (client) return;
+  if (startPromise) return startPromise;
 
-  const { state, saveCreds } = await useMultiFileAuthState(authDir);
-  const { version } = await fetchLatestBaileysVersion();
+  isStarting = true;
+  startPromise = (async () => {
+    try {
+      client = await wppconnect.create({
+        session: 'kutipcrew',
+        catchQR: (base64Qrimg, _asciiQR, attempts) => {
+          qrDataUrl = base64Qrimg;
+          console.log(`📱 QR code generated (attempt ${attempts}). Scan to connect.`);
+        },
+        statusFind: (statusSession) => {
+          console.log('WhatsApp status:', statusSession);
+          switch (statusSession) {
+            case 'isLogged':
+            case 'qrReadSuccess':
+            case 'inChat':
+              isConnected = true;
+              qrDataUrl = null;
+              hasEverConnected = true;
+              reconnectAttempts = 0;
+              console.log('✅ WhatsApp connected! Ready to send threats. 💀');
+              break;
+            case 'notLogged':
+            case 'qrReadError':
+            case 'qrReadFail':
+              isConnected = false;
+              break;
+            case 'browserClose':
+            case 'autocloseCalled':
+            case 'phoneNotConnected':
+            case 'disconnectedMobile':
+            case 'serverClose':
+              isConnected = false;
+              qrDataUrl = null;
+              client = null;
+              lastDisconnectAt = Date.now();
+              if (hasEverConnected) {
+                scheduleReconnect(statusSession);
+              } else {
+                console.log(`ℹ️  Initial state '${statusSession}' — waiting for QR scan (no reconnect).`);
+              }
+              break;
+          }
+        },
+        headless: true,
+        logQR: false,
+        disableWelcome: true,
+        autoClose: 0,
+        folderNameToken: './.wa-tokens',
+      });
 
-  const logger = pino({ level: 'silent' });
-
-  sock = makeWADefault({
-    version,
-    auth: state,
-    printQRInTerminal: false,
-    generateHighQualityLinkPreview: false,
-    logger,
-    browser: Browsers.ubuntu('Chrome'),
-  });
-
-  sock.ev.on('creds.update', saveCreds);
-
-  sock.ev.on('connection.update', async (update: Partial<ConnectionState>) => {
-    const { connection, lastDisconnect, qr } = update;
-
-    if (qr) {
       try {
-        qrDataUrl = await QRCode.toDataURL(qr, {
-          width: 300,
-          margin: 2,
-          color: { dark: '#000000', light: '#ffffff' },
-        });
-        console.log('📱 New QR code generated. Scan to connect.');
+        await client.startPhoneWatchdog(60_000);
       } catch (err) {
-        console.error('Failed to generate QR:', err);
+        console.warn('Phone watchdog not available:', err);
       }
+    } catch (error) {
+      console.error('❌ Failed to start WhatsApp:', error);
+      client = null;
+      scheduleReconnect('start-failed');
+      throw error;
+    } finally {
+      isStarting = false;
+      startPromise = null;
     }
+  })();
 
-    if (connection === 'close') {
-      const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-      isConnected = false;
-      qrDataUrl = null;
-
-      if (reason !== DisconnectReason.loggedOut) {
-        console.log('🔄 Reconnecting WhatsApp...');
-        sock = null;
-        setTimeout(() => startWhatsApp(), 3000);
-      } else {
-        console.log('❌ WhatsApp logged out. Need to re-scan QR.');
-        sock = null;
-      }
-    } else if (connection === 'open') {
-      isConnected = true;
-      qrDataUrl = null;
-      console.log('✅ WhatsApp connected! Ready to send threats. 💀');
-    }
-  });
+  return startPromise;
 }
 
-function makeWADefault(config: any): WASocket {
-  return makeWASocket(config);
+export async function stopWhatsApp(): Promise<void> {
+  clearReconnect();
+  if (client) {
+    try {
+      await client.close();
+    } catch (err) {
+      console.error('Error closing WhatsApp:', err);
+    }
+    client = null;
+  }
+  isConnected = false;
+  qrDataUrl = null;
 }
 
 export function getQRCode(): string | null {
@@ -91,20 +133,44 @@ export function isWhatsAppConnected(): boolean {
   return isConnected;
 }
 
+export async function logoutWhatsApp(): Promise<void> {
+  clearReconnect();
+  if (client) {
+    try {
+      await client.logout();
+      await client.close();
+    } catch (err) {
+      console.error('Error during logout:', err);
+    }
+    client = null;
+  }
+  isConnected = false;
+  qrDataUrl = null;
+  reconnectAttempts = 0;
+}
+
+export function normalizePhone(phone: string): string {
+  let digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('0') && digits.length > 1) {
+    digits = digits.slice(1);
+  }
+  if (!digits.startsWith('6')) {
+    digits = `60${digits}`;
+  }
+  return digits;
+}
+
 export async function sendWhatsAppMessage(phone: string, message: string): Promise<boolean> {
-  if (!sock || !isConnected) {
+  if (!client || !isConnected) {
     throw new Error('WhatsApp not connected. Scan QR code first.');
   }
 
-  let formattedPhone = phone.replace(/[^0-9]/g, '');
-  if (!formattedPhone.startsWith('6')) {
-    formattedPhone = `60${formattedPhone}`;
-  }
-  const jid = `${formattedPhone}@s.whatsapp.net`;
+  const formattedPhone = normalizePhone(phone);
+  const chatId = `${formattedPhone}@c.us`;
 
   try {
-    await sock.sendMessage(jid, { text: message });
-    console.log(`📨 Threat sent to ${phone} successfully!`);
+    await client.sendText(chatId, message);
+    console.log(`📨 Threat sent to ${phone} (${chatId}) successfully!`);
     return true;
   } catch (error) {
     console.error(`❌ Failed to send to ${phone}:`, error);
@@ -113,15 +179,17 @@ export async function sendWhatsAppMessage(phone: string, message: string): Promi
 }
 
 export async function sendBulkMessages(
-  recipients: Array<{ phone: string; message: string }>
+  recipients: Array<{ phone: string; message: string }>,
+  options: { delayMs?: number } = {}
 ): Promise<Array<{ phone: string; success: boolean; error?: string }>> {
+  const delay = options.delayMs ?? 1500;
   const results: Array<{ phone: string; success: boolean; error?: string }> = [];
 
   for (const recipient of recipients) {
     try {
       await sendWhatsAppMessage(recipient.phone, recipient.message);
       results.push({ phone: recipient.phone, success: true });
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     } catch (error: any) {
       results.push({ phone: recipient.phone, success: false, error: error.message });
     }
@@ -129,3 +197,13 @@ export async function sendBulkMessages(
 
   return results;
 }
+
+process.on('SIGINT', async () => {
+  await stopWhatsApp();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await stopWhatsApp();
+  process.exit(0);
+});

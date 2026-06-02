@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Icon } from '@iconify/react';
@@ -9,8 +9,12 @@ import { PaymentProgress } from '../components/PaymentProgress';
 import { MiniGames } from '../components/MiniGames';
 import { ChatSession } from '../components/ChatSession';
 import { ChatTranscript } from '../components/ChatTranscript';
+import { CategoryBadge } from '../components/CategoryBadge';
+import { BillSummary } from '../components/BillSummary';
+import { Footer } from '../components/Footer';
+import { useWhatsAppPolling } from '../hooks/useWhatsApp';
 import { api } from '../lib/api';
-import { formatCurrency, getDaysUntil, getConsequenceMessage, generateShareUrl, copyToClipboard } from '../lib/utils';
+import { formatCurrency, getDaysUntil, getConsequenceMessage, generateShareUrl, copyToClipboard, formatDate } from '../lib/utils';
 
 export function ViewBill() {
   const { token, id } = useParams();
@@ -20,10 +24,8 @@ export function ViewBill() {
   const [showConfirmModal, setShowConfirmModal] = useState<string | null>(null);
   const [confirmCode, setConfirmCode] = useState('');
   const [showQRModal, setShowQRModal] = useState(false);
-  const [qrImage, setQrImage] = useState<string | null>(null);
-  const [waConnected, setWaConnected] = useState(false);
   const [sendingThreats, setSendingThreats] = useState(false);
-  const [threatResult, setThreatResult] = useState<{ sent: number; failed: number } | null>(null);
+  const [threatResult, setThreatResult] = useState<{ sent: number; failed: number; details?: Array<{ phone: string; success: boolean; error?: string }> } | null>(null);
   const [activeChat, setActiveChat] = useState<{ participantId: string; participantName: string } | null>(null);
   const [chatMinimized, setChatMinimized] = useState(false);
   const [showGames, setShowGames] = useState(false);
@@ -32,11 +34,14 @@ export function ViewBill() {
     queryKey: ['bill', token || id],
     queryFn: () => token ? api.getBillByToken(token) : api.getBill(id!),
     enabled: !!(token || id),
+    refetchInterval: 30_000,
   });
 
+  const wa = useWhatsAppPolling(showQRModal, 2500);
+
   const markPaidMutation = useMutation({
-    mutationFn: ({ participantId, confirmedBy }: { participantId: string; confirmedBy?: string }) =>
-      api.markAsPaid(participantId, confirmedBy),
+    mutationFn: ({ participantId }: { participantId: string }) =>
+      api.markAsPaid(participantId, { confirmedBy: 'organizer' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bill'] });
     },
@@ -62,11 +67,18 @@ export function ViewBill() {
     },
   });
 
+  useEffect(() => {
+    if (showQRModal && wa.connected) {
+      const timer = setTimeout(() => setShowQRModal(false), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [showQRModal, wa.connected]);
+
   const handleTogglePaid = (participantId: string, currentPaid: boolean) => {
     if (currentPaid) {
       markUnpaidMutation.mutate(participantId);
     } else {
-      markPaidMutation.mutate({ participantId, confirmedBy: 'organizer' });
+      markPaidMutation.mutate({ participantId });
     }
   };
 
@@ -84,39 +96,18 @@ export function ViewBill() {
   const handleWhatsAppShare = () => {
     if (bill) {
       const url = generateShareUrl(bill.share_token);
-      const message = `💀 SPLIT OR SIP 💀\n\nYou owe RM${bill.total_amount / bill.participants.length} for "${bill.title}"!\n\nPay up or face the consequences...\n\nView bill: ${url}`;
+      const share = bill.total_amount / Math.max(bill.participants.length, 1);
+      const message = `💀 SPLIT OR SIP 💀\n\nYou owe ${formatCurrency(share, bill.currency)} for "${bill.title}"!\n\nPay up or face the consequences...\n\nView bill: ${url}`;
       window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     }
   };
 
   const handleOpenQR = async () => {
     setShowQRModal(true);
-    setQrImage(null);
-    setWaConnected(false);
     try {
       await api.startWhatsApp();
-      const pollQR = setInterval(async () => {
-        try {
-          const status = await api.getWhatsAppStatus();
-          if (status.connected) {
-            setWaConnected(true);
-            setQrImage(null);
-            clearInterval(pollQR);
-            return;
-          }
-          const qr = await api.getWhatsAppQR();
-          if (qr.qr) setQrImage(qr.qr);
-          if (qr.connected) {
-            setWaConnected(true);
-            setQrImage(null);
-            clearInterval(pollQR);
-          }
-        } catch { /* keep polling */ }
-      }, 2000);
-      setTimeout(() => clearInterval(pollQR), 120000);
     } catch (err: any) {
-      alert(err.message);
-      setShowQRModal(false);
+      console.warn('Start WhatsApp error:', err);
     }
   };
 
@@ -126,7 +117,7 @@ export function ViewBill() {
     setThreatResult(null);
     try {
       const result = await api.sendWhatsAppThreats(bill.id);
-      setThreatResult({ sent: result.sent, failed: result.failed });
+      setThreatResult({ sent: result.sent, failed: result.failed, details: result.details });
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -165,7 +156,7 @@ export function ViewBill() {
   return (
     <div className="min-h-screen bg-bg-primary py-8 px-4">
       <div className="max-w-3xl mx-auto">
-        <button 
+        <button
           onClick={() => navigate('/')}
           className="flex items-center gap-2 text-gray-600 hover:text-black font-bold mb-6 cursor-pointer"
         >
@@ -183,9 +174,24 @@ export function ViewBill() {
 
         <div className={`border-4 border-black bg-white p-6 md:p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-6 ${isOverdue ? 'animate-shake border-red' : ''}`}>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                {bill.category && <CategoryBadge category={bill.category} size="sm" />}
+                {bill.tags && bill.tags.length > 0 && bill.tags.map((t) => (
+                  <span key={t} className="text-xs text-gray-500">#{t}</span>
+                ))}
+                {bill.split_mode && bill.split_mode !== 'equal' && (
+                  <span className="text-xs bg-black text-white px-2 py-0.5 font-bold uppercase border-2 border-black">
+                    {bill.split_mode} split
+                  </span>
+                )}
+              </div>
               <h1 className="font-heading text-3xl md:text-4xl uppercase m-0">{bill.title}</h1>
-              <p className="text-gray-600 mt-1">Organized by <span className="font-bold">{bill.organizer_name}</span></p>
+              <p className="text-gray-600 mt-1">
+                Organized by <span className="font-bold">{bill.organizer_name}</span>
+                <span className="text-gray-400"> · </span>
+                <span className="text-sm">Created {formatDate(bill.created_at)}</span>
+              </p>
             </div>
             <div className="bg-black text-white px-6 py-3 text-center">
               <p className="text-xs uppercase opacity-70 m-0">Total Amount</p>
@@ -197,7 +203,7 @@ export function ViewBill() {
             <p className="text-lg mb-6 pb-6 border-b-4 border-black">{bill.description}</p>
           )}
 
-          <PaymentProgress 
+          <PaymentProgress
             percentage={bill.stats.progress_percentage}
             collected={bill.stats.collected_amount}
             total={bill.total_amount}
@@ -215,7 +221,7 @@ export function ViewBill() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <BrutalistButton 
+          <BrutalistButton
             variant="outline"
             onClick={handleCopyLink}
             icon={copied ? 'majesticons:check' : 'majesticons:link'}
@@ -223,8 +229,8 @@ export function ViewBill() {
           >
             {copied ? 'Copied!' : 'Copy Share Link'}
           </BrutalistButton>
-          
-          <BrutalistButton 
+
+          <BrutalistButton
             variant="green"
             onClick={handleWhatsAppShare}
             icon="majesticons:whatsapp"
@@ -240,9 +246,9 @@ export function ViewBill() {
               {bill.payment_qr_url && (
                 <div className="flex-shrink-0 text-center">
                   <div className="border-4 border-black bg-white p-2 inline-block shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <img 
-                      src={import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}${bill.payment_qr_url}` : bill.payment_qr_url} 
-                      alt="Payment QR Code" 
+                    <img
+                      src={import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}${bill.payment_qr_url}` : bill.payment_qr_url}
+                      alt="Payment QR Code"
                       className="w-48 h-48 object-contain"
                     />
                   </div>
@@ -278,15 +284,15 @@ export function ViewBill() {
           </BrutalistCard>
         )}
 
-        <BrutalistCard 
-          icon="majesticons:skull" 
+        <BrutalistCard
+          icon="majesticons:skull"
           title="Threat Center 💀"
           className="mb-6 border-red"
         >
           <p className="mb-4 text-sm">Send personalized death threats (jokes lah 😂) to unpaid members via WhatsApp with bank details included.</p>
-          
+
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
-            {!waConnected ? (
+            {!wa.connected ? (
               <BrutalistButton onClick={handleOpenQR} icon="majesticons:qr-code" variant="outline" className="flex-1">
                 Connect WhatsApp
               </BrutalistButton>
@@ -296,10 +302,10 @@ export function ViewBill() {
                 WhatsApp Connected
               </div>
             )}
-            
-            <BrutalistButton 
+
+            <BrutalistButton
               onClick={handleSendThreats}
-              disabled={!waConnected || sendingThreats || bill.stats.unpaid_count === 0}
+              disabled={!wa.connected || sendingThreats || bill.stats.unpaid_count === 0}
               loading={sendingThreats}
               icon="majesticons:whatsapp"
               variant="red"
@@ -310,8 +316,19 @@ export function ViewBill() {
           </div>
 
           {threatResult && (
-            <div className={`border-4 border-black p-3 text-center font-bold ${threatResult.failed > 0 ? 'bg-yellow' : 'bg-green'}`}>
-              {threatResult.sent} threats sent! {threatResult.failed > 0 && `${threatResult.failed} failed.`} 💀
+            <div className={`border-4 border-black p-3 ${threatResult.failed > 0 ? 'bg-yellow' : 'bg-green'}`}>
+              <p className="text-center font-bold m-0">
+                {threatResult.sent} threats sent! {threatResult.failed > 0 && `${threatResult.failed} failed.`} 💀
+              </p>
+              {threatResult.details && threatResult.details.length > 0 && (
+                <ul className="mt-2 text-xs space-y-0.5 max-h-32 overflow-y-auto">
+                  {threatResult.details.map((d, i) => (
+                    <li key={i} className={d.success ? 'text-green-700' : 'text-red'}>
+                      {d.success ? '✓' : '✗'} {d.phone} {d.error && `— ${d.error}`}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
@@ -320,11 +337,12 @@ export function ViewBill() {
           )}
         </BrutalistCard>
 
-        <BrutalistCard 
-          icon="majesticons:users" 
+        <BrutalistCard
+          icon="majesticons:users"
           title={`Participants (${bill.stats.paid_count}/${bill.stats.total_participants})`}
+          className="mb-6"
         >
-<ParticipantList
+          <ParticipantList
             participants={bill.participants}
             currency={bill.currency}
             onTogglePaid={handleTogglePaid}
@@ -357,6 +375,8 @@ export function ViewBill() {
           </div>
         </BrutalistCard>
 
+        <BillSummary billId={bill.id} currency={bill.currency} className="mb-6" />
+
         {isOverdue && bill.stats.unpaid_count > 0 && (
           <BrutalistCard icon="majesticons:game-controller" title="Can't Pay? Play!" className="mb-6 border-yellow">
             <p className="text-sm mb-4">Deadline passed! Unpaid members can try their luck with mini-games for mercy.</p>
@@ -376,6 +396,8 @@ export function ViewBill() {
             Organizer contact: {bill.organizer_contact}
           </div>
         )}
+
+        <Footer />
       </div>
 
       {showConfirmModal && (
@@ -391,7 +413,7 @@ export function ViewBill() {
               className="w-full border-4 border-black px-4 py-3 mb-4 focus:outline-none focus:bg-yellow"
             />
             <div className="flex gap-3">
-              <BrutalistButton 
+              <BrutalistButton
                 variant="green"
                 className="flex-1"
                 onClick={() => confirmPaymentMutation.mutate({ participantId: showConfirmModal, code: confirmCode })}
@@ -399,7 +421,7 @@ export function ViewBill() {
               >
                 Confirm
               </BrutalistButton>
-              <BrutalistButton 
+              <BrutalistButton
                 variant="outline"
                 className="flex-1"
                 onClick={() => { setShowConfirmModal(null); setConfirmCode(''); }}
@@ -415,8 +437,8 @@ export function ViewBill() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-white border-4 border-black p-6 max-w-md w-full shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] text-center">
             <h3 className="font-heading text-2xl uppercase mb-4">Connect WhatsApp 💀</h3>
-            
-            {waConnected ? (
+
+            {wa.connected ? (
               <div>
                 <Icon icon="majesticons:check-circle" className="h-20 w-20 mx-auto mb-4 text-green" />
                 <p className="font-bold text-xl mb-4">Connected!</p>
@@ -425,17 +447,20 @@ export function ViewBill() {
                   Start Threatening
                 </BrutalistButton>
               </div>
-            ) : qrImage ? (
+            ) : wa.qr ? (
               <div>
                 <p className="mb-4 font-bold">Scan with WhatsApp on your phone:</p>
                 <div className="border-4 border-black p-4 inline-block mb-4">
-                  <img src={qrImage} alt="WhatsApp QR Code" className="w-64 h-64" />
+                  <img src={wa.qr} alt="WhatsApp QR Code" className="w-64 h-64" />
                 </div>
                 <p className="text-xs text-gray-500 mb-4">Open WhatsApp → Linked Devices → Link a Device</p>
                 <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                   <Icon icon="majesticons:spinner" className="animate-spin h-4 w-4" />
                   Waiting for scan...
                 </div>
+                {wa.error && (
+                  <p className="text-red text-xs mt-2">{wa.error}</p>
+                )}
               </div>
             ) : (
               <div>
@@ -445,12 +470,26 @@ export function ViewBill() {
               </div>
             )}
 
-            <button 
-              onClick={() => setShowQRModal(false)}
-              className="mt-4 text-gray-500 underline cursor-pointer"
-            >
-              Close
-            </button>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setShowQRModal(false)}
+                className="flex-1 text-gray-500 underline cursor-pointer"
+              >
+                Close
+              </button>
+              {wa.connected && (
+                <button
+                  onClick={async () => {
+                    if (confirm('Logout WhatsApp? You will need to re-scan QR code.')) {
+                      await wa.logout();
+                    }
+                  }}
+                  className="text-red underline cursor-pointer text-sm"
+                >
+                  Logout
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

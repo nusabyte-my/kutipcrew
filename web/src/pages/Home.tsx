@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
 import { BrutalistButton } from '../components/BrutalistButton';
 import { BrutalistCard } from '../components/BrutalistCard';
+import { Footer } from '../components/Footer';
 
 const WARNINGS = [
   "Unpaid bills will result in EXTREME CONSEQUENCES. Dato' Jalal will personally visit your dreams carrying extra-pedasy nasi lemak as a final warning! 🔥",
@@ -116,11 +117,7 @@ export function Home() {
           </button>
         </div>
 
-        <div className="mt-16 text-center">
-          <p className="font-accent text-gray-500">
-            KutipCrew — We collect so you don't have to chase 💀
-          </p>
-        </div>
+        <Footer />
       </div>
     </div>
   );

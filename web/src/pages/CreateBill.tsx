@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Icon } from '@iconify/react';
 import { CreateBillForm } from '../components/CreateBillForm';
 import { BrutalistCard } from '../components/BrutalistCard';
+import { Footer } from '../components/Footer';
 import { api } from '../lib/api';
 
 export function CreateBill() {
@@ -51,6 +52,8 @@ export function CreateBill() {
           <Icon icon="majesticons:info-circle" className="inline h-4 w-4 mr-1" />
           All bills are public via share link. No login required. Share responsibly.
         </div>
+
+        <Footer />
       </div>
     </div>
   );

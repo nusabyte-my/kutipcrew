@@ -1,12 +1,14 @@
 import { Hono } from 'hono';
-import { 
-  startWhatsApp, 
-  getQRCode, 
-  isWhatsAppConnected, 
-  sendWhatsAppMessage,
-  sendBulkMessages 
+import { z } from 'zod';
+import {
+  startWhatsApp,
+  stopWhatsApp,
+  logoutWhatsApp,
+  getQRCode,
+  isWhatsAppConnected,
+  sendBulkMessages,
 } from '../services/whatsappService';
-import { getBillById, getBillByToken } from '../services/billService';
+import { getBillById } from '../services/billService';
 import { buildPaymentMessage } from '../services/threatMessages';
 
 export const whatsappRoutes = new Hono();
@@ -20,25 +22,50 @@ whatsappRoutes.post('/start', async (c) => {
   }
 });
 
+whatsappRoutes.post('/stop', async (c) => {
+  try {
+    await stopWhatsApp();
+    return c.json({ message: 'WhatsApp stopped.' });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+whatsappRoutes.post('/logout', async (c) => {
+  try {
+    await logoutWhatsApp();
+    return c.json({ message: 'WhatsApp logged out. Scan QR again to reconnect.' });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
 whatsappRoutes.get('/status', (c) => {
   return c.json({ connected: isWhatsAppConnected() });
 });
 
 whatsappRoutes.get('/qr', async (c) => {
+  if (isWhatsAppConnected()) {
+    return c.json({ message: 'Already connected!', connected: true });
+  }
+
   if (!getQRCode()) {
-    if (isWhatsAppConnected()) {
-      return c.json({ message: 'Already connected!', connected: true });
-    }
-    await startWhatsApp();
-    await new Promise((r) => setTimeout(r, 3000));
+    startWhatsApp().catch((err) => console.error('Failed to start WhatsApp for QR:', err));
+    await new Promise((r) => setTimeout(r, 2500));
   }
 
   const qr = getQRCode();
   if (!qr) {
-    return c.json({ error: 'QR code not available yet. Try again in a few seconds.' }, 404);
+    return c.json({ error: 'QR code not available yet. Try again in a few seconds.', connected: false }, 404);
   }
 
   return c.json({ qr, connected: isWhatsAppConnected() });
+});
+
+const sendSchema = z.object({
+  participant_ids: z.array(z.string().uuid()).optional(),
+  base_url: z.string().url().optional(),
+  delay_ms: z.number().int().min(500).max(10000).optional(),
 });
 
 whatsappRoutes.post('/send/:billId', async (c) => {
@@ -49,17 +76,23 @@ whatsappRoutes.post('/send/:billId', async (c) => {
 
     const billId = c.req.param('billId');
     const body = await c.req.json().catch(() => ({}));
-    const participantIds: string[] | undefined = body.participant_ids;
+    const parsed = sendSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return c.json({ error: 'Validation failed', details: parsed.error.errors }, 400);
+    }
+
+    const { participant_ids, base_url, delay_ms } = parsed.data;
 
     const bill = await getBillById(billId);
     if (!bill) {
       return c.json({ error: 'Bill not found' }, 404);
     }
 
-    const shareUrl = `${body.base_url || 'https://kutipcrew.nusabyte.cloud'}/bill/${bill.share_token}`;
+    const shareUrl = `${base_url || 'https://kutipcrew.nusabyte.cloud'}/bill/${bill.share_token}`;
 
-    const targets = participantIds
-      ? bill.participants.filter((p) => participantIds.includes(p.id))
+    const targets = participant_ids && participant_ids.length > 0
+      ? bill.participants.filter((p) => participant_ids.includes(p.id))
       : bill.participants.filter((p) => !p.paid && p.phone);
 
     if (targets.length === 0) {
@@ -81,10 +114,11 @@ whatsappRoutes.post('/send/:billId', async (c) => {
           bankHolder: bill.bank_holder || undefined,
           shareUrl,
           dueDate: bill.due_date || undefined,
+          description: bill.description || undefined,
         }),
       }));
 
-    const results = await sendBulkMessages(recipients);
+    const results = await sendBulkMessages(recipients, { delayMs: delay_ms });
 
     return c.json({
       sent: results.filter((r) => r.success).length,
@@ -97,10 +131,22 @@ whatsappRoutes.post('/send/:billId', async (c) => {
   }
 });
 
+const previewSchema = z.object({
+  bill_id: z.string().uuid(),
+  participant_name: z.string().min(1).optional(),
+  base_url: z.string().url().optional(),
+});
+
 whatsappRoutes.post('/send-preview', async (c) => {
   try {
     const body = await c.req.json();
-    const { bill_id, participant_name, base_url } = body;
+    const parsed = previewSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return c.json({ error: 'Validation failed', details: parsed.error.errors }, 400);
+    }
+
+    const { bill_id, participant_name, base_url } = parsed.data;
 
     const bill = await getBillById(bill_id);
     if (!bill) {
@@ -120,10 +166,12 @@ whatsappRoutes.post('/send-preview', async (c) => {
       bankHolder: bill.bank_holder || undefined,
       shareUrl,
       dueDate: bill.due_date || undefined,
+      description: bill.description || undefined,
     });
 
     return c.json({ message });
   } catch (error: any) {
+    console.error('Error generating preview:', error);
     return c.json({ error: error.message }, 500);
   }
 });
