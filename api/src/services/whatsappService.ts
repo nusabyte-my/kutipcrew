@@ -90,6 +90,15 @@ export async function startWhatsApp(): Promise<void> {
         disableWelcome: true,
         autoClose: 0,
         folderNameToken: './.wa-tokens',
+        puppeteerOptions: {
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--no-zygote',
+          ],
+        },
       });
 
       try {
